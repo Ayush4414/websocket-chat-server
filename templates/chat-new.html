@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern WebSocket Chat - Rebuilt</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .toast {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .message-bubble {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+    <div class="min-h-screen p-4">
+        <!-- Header -->
+        <header class="glass rounded-2xl p-6 mb-6 text-white">
+            <div class="max-w-6xl mx-auto">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-bold mb-2">
+                            <i class="fas fa-comments mr-3"></i>Modern WebSocket Chat
+                        </h1>
+                        <p class="text-gray-200">Rebuilt from scratch with 2024 best practices</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span id="connectionStatus" class="px-3 py-1 rounded-full text-white text-sm bg-red-600">
+                            Disconnected
+                        </span>
+                        <button onclick="window.chatClient?.disconnect()" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Disconnect
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-6xl mx-auto">
+            <div class="grid lg:grid-cols-3 gap-6">
+                <!-- Login Panel -->
+                <div class="lg:col-span-1">
+                    <div class="glass rounded-2xl p-6 text-white">
+                        <h2 class="text-xl font-bold mb-4">
+                            <i class="fas fa-user-plus mr-2"></i>Join Chat
+                        </h2>
+                        <form id="loginForm" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Username</label>
+                                <input 
+                                    type="text" 
+                                    id="username" 
+                                    class="w-full px-4 py-2 rounded-lg bg-white bg-opacity-20 border border-white border-opacity-30 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-300"
+                                    placeholder="Enter your username"
+                                    required
+                                >
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Topic/Room</label>
+                                <input 
+                                    type="text" 
+                                    id="topic" 
+                                    class="w-full px-4 py-2 rounded-lg bg-white bg-opacity-20 border border-white border-opacity-30 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-300"
+                                    placeholder="Enter topic name"
+                                    required
+                                >
+                            </div>
+                            <button 
+                                type="submit" 
+                                class="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                            >
+                                <i class="fas fa-sign-in-alt mr-2"></i>Join Chat
+                            </button>
+                        </form>
+
+                        <!-- Quick Topics -->
+                        <div class="mt-6">
+                            <h3 class="text-sm font-medium mb-3">Quick Topics</h3>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button class="topic-btn px-3 py-2 bg-white bg-opacity-20 rounded-lg text-sm hover:bg-opacity-30 transition-colors" data-topic="general">
+                                    <i class="fas fa-globe mr-1"></i>General
+                                </button>
+                                <button class="topic-btn px-3 py-2 bg-white bg-opacity-20 rounded-lg text-sm hover:bg-opacity-30 transition-colors" data-topic="sports">
+                                    <i class="fas fa-football-ball mr-1"></i>Sports
+                                </button>
+                                <button class="topic-btn px-3 py-2 bg-white bg-opacity-20 rounded-lg text-sm hover:bg-opacity-30 transition-colors" data-topic="tech">
+                                    <i class="fas fa-laptop-code mr-1"></i>Tech
+                                </button>
+                                <button class="topic-btn px-3 py-2 bg-white bg-opacity-20 rounded-lg text-sm hover:bg-opacity-30 transition-colors" data-topic="movies">
+                                    <i class="fas fa-film mr-1"></i>Movies
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Connection Info -->
+                        <div class="mt-6 p-4 bg-black bg-opacity-30 rounded-lg">
+                            <h3 class="text-sm font-medium mb-2">Connection Info</h3>
+                            <div class="text-xs text-gray-300 space-y-1">
+                                <div>Server: <span id="serverInfo">ws://localhost:8000/ws</span></div>
+                                <div>Protocol: WebSocket</div>
+                                <div>State: <span id="connectionState">Disconnected</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Area -->
+                <div class="lg:col-span-2">
+                    <div class="glass rounded-2xl p-6 text-white h-full flex flex-col">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold">
+                                <i class="fas fa-comments mr-2"></i>Chat Room
+                            </h2>
+                            <div class="flex items-center space-x-2">
+                                <span id="roomInfo" class="text-sm text-gray-300">Not connected</span>
+                                <button onclick="window.chatClient?.ui?.elements?.messagesList?.innerHTML = ''" class="px-3 py-1 bg-white bg-opacity-20 rounded-lg text-sm hover:bg-opacity-30 transition-colors">
+                                    <i class="fas fa-broom mr-1"></i>Clear
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Messages Container -->
+                        <div id="messagesList" class="flex-1 bg-black bg-opacity-30 rounded-lg p-4 overflow-y-auto mb-4 min-h-[400px] max-h-[500px]">
+                            <div class="text-center text-gray-400 py-8">
+                                <i class="fas fa-comments text-4xl mb-4"></i>
+                                <p>Join a chat room to start messaging</p>
+                            </div>
+                        </div>
+
+                        <!-- Message Input -->
+                        <form id="messageForm" class="flex space-x-2">
+                            <input 
+                                type="text" 
+                                id="messageInput" 
+                                class="flex-1 px-4 py-2 rounded-lg bg-white bg-opacity-20 border border-white border-opacity-30 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-300"
+                                placeholder="Type your message..."
+                                disabled
+                            >
+                            <button 
+                                type="submit" 
+                                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                id="sendButton"
+                                disabled
+                            >
+                                <i class="fas fa-paper-plane mr-2"></i>Send
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features Section -->
+            <div class="mt-6 glass rounded-2xl p-6 text-white">
+                <h2 class="text-xl font-bold mb-4">
+                    <i class="fas fa-star mr-2"></i>Modern Architecture Features
+                </h2>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div class="bg-black bg-opacity-30 rounded-lg p-4">
+                        <i class="fas fa-plug text-blue-400 text-2xl mb-2"></i>
+                        <h3 class="font-medium mb-2">Event-Driven Architecture</h3>
+                        <p class="text-sm text-gray-300">Pub/sub pattern with event bus for scalable communication</p>
+                    </div>
+                    <div class="bg-black bg-opacity-30 rounded-lg p-4">
+                        <i class="fas fa-sync text-green-400 text-2xl mb-2"></i>
+                        <h3 class="font-medium mb-2">Auto-Reconnection</h3>
+                        <p class="text-sm text-gray-300">Exponential backoff with graceful connection recovery</p>
+                    </div>
+                    <div class="bg-black bg-opacity-30 rounded-lg p-4">
+                        <i class="fas fa-heartbeat text-red-400 text-2xl mb-2"></i>
+                        <h3 class="font-medium mb-2">Connection Health</h3>
+                        <p class="text-sm text-gray-300">30-second heartbeat monitoring with backpressure handling</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Scripts -->
+    <script src="/static/js/chat-new.js"></script>
+    
+    <script>
+        // Quick topic buttons
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.topic-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.getElementById('topic').value = e.target.dataset.topic;
+                });
+            });
+
+            // Update connection state display
+            setInterval(() => {
+                const stateElement = document.getElementById('connectionState');
+                const roomInfoElement = document.getElementById('roomInfo');
+                
+                if (window.chatClient) {
+                    const state = window.chatClient.connectionManager.state;
+                    stateElement.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+                    
+                    if (window.chatClient.username && window.chatClient.topic) {
+                        roomInfoElement.textContent = `${window.chatClient.username} in ${window.chatClient.topic}`;
+                    }
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

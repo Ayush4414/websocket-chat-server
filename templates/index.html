@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure WebSocket Chat</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link href="/static/css/chat.css" rel="stylesheet">
+</head>
+<body class="bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 min-h-screen">
+    <!-- Header -->
+    <header class="bg-black bg-opacity-50 backdrop-blur-lg border-b border-white border-opacity-20">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-shield-alt text-green-400 text-2xl"></i>
+                    <h1 class="text-2xl font-bold text-white">Secure WebSocket Chat</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="connectionStatus" class="px-3 py-1 rounded-full text-sm font-medium bg-red-500 text-white">
+                        <i class="fas fa-circle text-xs mr-2"></i>Disconnected
+                    </span>
+                    <button id="statsBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                        <i class="fas fa-chart-bar mr-2"></i>Stats
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Login Panel -->
+            <div id="loginPanel" class="lg:col-span-1">
+                <div class="bg-white bg-opacity-10 backdrop-blur-lg rounded-2xl p-6 border border-white border-opacity-20">
+                    <h2 class="text-xl font-bold text-white mb-6">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Join Chat Room
+                    </h2>
+                    
+                    <form id="loginForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-200 mb-2">
+                                <i class="fas fa-user mr-1"></i>Username
+                            </label>
+                            <input type="text" id="username" maxlength="20" required
+                                class="w-full px-4 py-2 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Enter username...">
+                            <span class="text-xs text-gray-400">1-20 alphanumeric characters</span>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-200 mb-2">
+                                <i class="fas fa-hashtag mr-1"></i>Topic
+                            </label>
+                            <input type="text" id="topic" maxlength="50" required
+                                class="w-full px-4 py-2 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Enter topic...">
+                            <span class="text-xs text-gray-400">1-50 alphanumeric characters</span>
+                        </div>
+                        
+                        <button type="submit" id="connectBtn"
+                            class="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-lg transition-all transform hover:scale-105">
+                            <i class="fas fa-plug mr-2"></i>Connect
+                        </button>
+                    </form>
+                    
+                    <!-- Quick Topics -->
+                    <div class="mt-6">
+                        <h3 class="text-sm font-medium text-gray-200 mb-3">Quick Topics:</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <button class="topic-btn px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-full transition-colors" data-topic="sports">
+                                <i class="fas fa-football-ball mr-1"></i>sports
+                            </button>
+                            <button class="topic-btn px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-full transition-colors" data-topic="movies">
+                                <i class="fas fa-film mr-1"></i>movies
+                            </button>
+                            <button class="topic-btn px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-full transition-colors" data-topic="tech">
+                                <i class="fas fa-laptop-code mr-1"></i>tech
+                            </button>
+                            <button class="topic-btn px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-full transition-colors" data-topic="music">
+                                <i class="fas fa-music mr-1"></i>music
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Active Topics -->
+                <div class="bg-white bg-opacity-10 backdrop-blur-lg rounded-2xl p-6 border border-white border-opacity-20 mt-6">
+                    <h2 class="text-xl font-bold text-white mb-4">
+                        <i class="fas fa-list mr-2"></i>Active Topics
+                    </h2>
+                    <div id="topicsList" class="space-y-2">
+                        <p class="text-gray-400 text-sm">No active topics</p>
+                    </div>
+                    <button id="refreshTopics" class="mt-4 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat Panel -->
+            <div id="chatPanel" class="lg:col-span-2 hidden">
+                <div class="bg-white bg-opacity-10 backdrop-blur-lg rounded-2xl border border-white border-opacity-20 h-full flex flex-col">
+                    <!-- Chat Header -->
+                    <div class="p-4 border-b border-white border-opacity-20">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-lg font-bold text-white">
+                                    <i class="fas fa-comments mr-2"></i>
+                                    <span id="currentTopic">-</span>
+                                </h3>
+                                <p class="text-sm text-gray-300">
+                                    Connected as: <span id="currentUsername" class="font-medium">-</span>
+                                </p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span id="onlineCount" class="px-3 py-1 bg-green-600 text-white text-sm rounded-full">
+                                    <i class="fas fa-users mr-1"></i>0 online
+                                </span>
+                                <button id="disconnectBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                                    <i class="fas fa-sign-out-alt mr-2"></i>Leave
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Messages Container -->
+                    <div id="messagesContainer" class="flex-1 p-4 overflow-y-auto min-h-96 max-h-96">
+                        <div class="space-y-3" id="messagesList">
+                            <div class="text-center text-gray-400 py-8">
+                                <i class="fas fa-comments text-4xl mb-4"></i>
+                                <p>Welcome to the chat room!</p>
+                                <p class="text-sm">Messages will appear here...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Message Input -->
+                    <div class="p-4 border-t border-white border-opacity-20">
+                        <form id="messageForm" class="flex space-x-2">
+                            <input type="text" id="messageInput" maxlength="5000" disabled
+                                class="flex-1 px-4 py-2 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Type your message...">
+                            <button type="submit" id="sendBtn" disabled
+                                class="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-paper-plane mr-2"></i>Send
+                            </button>
+                        </form>
+                        <div class="mt-2 flex items-center justify-between text-xs text-gray-400">
+                            <span id="charCount">0 / 5000 characters</span>
+                            <span id="messageExpiry">
+                                <i class="fas fa-clock mr-1"></i>Messages expire after 30 seconds
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Demo Scenarios -->
+        <div class="mt-8">
+            <div class="bg-white bg-opacity-10 backdrop-blur-lg rounded-xl p-6 border border-white border-opacity-20 mb-6">
+                <h2 class="text-2xl font-bold text-white mb-4">
+                    <i class="fas fa-play-circle mr-2 text-yellow-400"></i>Interactive Demo Control
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button id="startDemo" class="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all transform hover:scale-105">
+                        <i class="fas fa-rocket mr-2"></i>Start Full Demo
+                    </button>
+                    <button id="stopDemo" class="px-6 py-3 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white font-bold rounded-lg transition-all transform hover:scale-105">
+                        <i class="fas fa-stop mr-2"></i>Stop Demo
+                    </button>
+                    <button id="resetDemo" class="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-lg transition-all transform hover:scale-105">
+                        <i class="fas fa-redo mr-2"></i>Reset Demo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Room Windows -->
+            <div id="roomWindows" class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                <!-- Room windows will be dynamically added here -->
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="bg-white bg-opacity-10 backdrop-blur-lg rounded-xl p-4 border border-white border-opacity-20">
+                    <h3 class="text-white font-bold mb-2">
+                        <i class="fas fa-users mr-2 text-blue-400"></i>Multi-User Chat
+                    </h3>
+                    <p class="text-gray-300 text-sm mb-3">Test real-time messaging between multiple users in the same topic</p>
+                    <button class="demo-btn w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors" data-scenario="1">
+                        <i class="fas fa-play mr-2"></i>Run Demo
+                    </button>
+                </div>
+
+                <div class="bg-white bg-opacity-10 backdrop-blur-lg rounded-xl p-4 border border-white border-opacity-20">
+                    <h3 class="text-white font-bold mb-2">
+                        <i class="fas fa-lock mr-2 text-green-400"></i>Topic Isolation
+                    </h3>
+                    <p class="text-gray-300 text-sm mb-3">Verify that messages stay within their designated topics</p>
+                    <button class="demo-btn w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors" data-scenario="2">
+                        <i class="fas fa-play mr-2"></i>Run Demo
+                    </button>
+                </div>
+
+                <div class="bg-white bg-opacity-10 backdrop-blur-lg rounded-xl p-4 border border-white border-opacity-20">
+                    <h3 class="text-white font-bold mb-2">
+                        <i class="fas fa-user-tag mr-2 text-purple-400"></i>Username Uniqueness
+                    </h3>
+                    <p class="text-gray-300 text-sm mb-3">Test automatic username suffix (#N) for duplicate names</p>
+                    <button class="demo-btn w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors" data-scenario="6">
+                        <i class="fas fa-play mr-2"></i>Run Demo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Stats Modal -->
+    <div id="statsModal" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-gray-900 rounded-2xl p-6 max-w-md w-full border border-gray-700">
+                <h3 class="text-xl font-bold text-white mb-4">
+                    <i class="fas fa-chart-bar mr-2"></i>Server Statistics
+                </h3>
+                <div id="statsContent" class="space-y-3">
+                    <!-- Stats will be populated here -->
+                </div>
+                <button id="closeStats" class="mt-4 w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                    <i class="fas fa-times mr-2"></i>Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <script src="/static/js/chat.js"></script>
+</body>
+</html>
