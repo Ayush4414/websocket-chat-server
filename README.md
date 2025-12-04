@@ -24,8 +24,8 @@ A lightweight real-time chat server built with FastAPI WebSockets that supports 
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
-cd YOUR_REPO_NAME
+git clone https://github.com/Ayush4414/websocket-chat-server.git
+cd websocket-chat-server
 ```
 
 2. **Install dependencies**
